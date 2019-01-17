@@ -291,7 +291,7 @@ if __name__ == '__main__':
     start = 0.3
     stop = 0.6
     I_max = 0.6
-    neu_num = [np.random.randint(31, 40) for i in xrange(3)]
+    neu_num = [np.random.randint(31, 40) for i in range(3)]
 
     create_lpu(args.lpu_file_name, args.lpu, *neu_num)
     g = nx.read_gexf(args.lpu_file_name)
