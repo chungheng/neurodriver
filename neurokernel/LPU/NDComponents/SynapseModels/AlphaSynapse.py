@@ -1,4 +1,3 @@
-from BaseSynapseModel import BaseSynapseModel
 from collections import OrderedDict
 import numpy as np
 
@@ -7,6 +6,7 @@ from pycuda.tools import dtype_to_ctype
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 
+from .BaseSynapseModel import BaseSynapseModel
 # The following kernel assumes a maximum of one input connection
 # per neuron
 

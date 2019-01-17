@@ -10,7 +10,7 @@ import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 
 from neurokernel.LPU.utils.simpleio import *
-from BaseDendriteModel import BaseDendriteModel
+from .BaseDendriteModel import BaseDendriteModel
 
 class Aggregator(BaseDendriteModel):
     accesses = ['g','V']
