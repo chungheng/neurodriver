@@ -1,6 +1,6 @@
 import networkx as nx
 import inspect
-from NDComponents import *
+from .NDComponents import *
 from collections import OrderedDict
 
 def get_all_subclasses(cls):
@@ -18,10 +18,11 @@ class Graph(object):
         self.modelDefaults = {}
 
     def _str_to_model(self, model):
-        if type(model) is unicode or type(model) is str:
+
+        modules = get_all_subclasses(NDComponent.NDComponent)
+        modules = {x.__name__.encode('utf-8'): x for x in modules}
+        if type(model) is str:
             model = model.encode('utf-8')
-            modules = get_all_subclasses(NDComponent.NDComponent)
-            modules = {x.__name__.encode('utf-8'): x for x in modules}
             if model in modules:
                 model = modules[model]
             else:
@@ -39,15 +40,17 @@ class Graph(object):
         assert(set(params.keys()) <= set(self.modelDefaults[model]['params']))
         assert(set(states.keys()) <= set(self.modelDefaults[model]['states']))
 
-        attrs = {}
-        for k,v in kwargs.items():
-            if k in self.modelDefaults[model]['params']:
-                params[k] = v
-            elif k in self.modelDefaults[model]['states']:
-                states[k] = v
-            else:
-                attrs[k] = v
-        return model, params, states, attrs
+        kwargs.update(params)
+        kwargs.update(states)
+        attrs = {'class':model}
+
+        for k,v in self.modelDefaults[model]['params'].items():
+            attrs[k] = kwargs.pop(k, v)
+        for k,v in self.modelDefaults[model]['states'].items():
+            attrs[k] = kwargs.pop(k, v)
+
+        attrs.update(kwargs)
+        return attrs
 
     def connect_port(self, x, y, **kwargs):
         """Connect a port to a node.
@@ -182,7 +185,7 @@ class Graph(object):
         kwargs['class'] = u'Port'
         delay = self._get_delay(kwargs)
         self.graph.add_node(node,
-            kwargs,
+            **kwargs,
             port_io = port_io,
             port_type = port_type,
             selector = selector)
@@ -224,11 +227,9 @@ class Graph(object):
         dictionary. This includes strings, numbers, tuples of strings
         and numbers, etc.
         """
-        model, params, states, attrs = self._parse_model_kwargs(model, **kwargs)
+        attrs = self._parse_model_kwargs(model, **kwargs)
 
-        self.graph.add_node(node,
-            {'class':model, 'params':params, 'states':states},
-            **attrs)
+        self.graph.add_node(node, **attrs)
 
     def set_model_default(self, model, **kwargs):
         model = self._str_to_model(model)
@@ -289,12 +290,10 @@ class Graph(object):
         dictionary. This includes strings, numbers, tuples of strings
         and numbers, etc.
         """
-        model, params, states, attrs = self._parse_model_kwargs(model, **kwargs)
+        attrs = self._parse_model_kwargs(model, **kwargs)
         delay = self._get_delay(attrs)
 
-        self.graph.add_node(node,
-            {'class':model, 'params':params, 'states':states},
-            **attrs)
+        self.graph.add_node(node, **attrs)
 
         if source:
             self.graph.add_edge(source, node, **delay)
@@ -308,17 +307,14 @@ class Graph(object):
 
     def write_gexf(self, filename):
         graph = nx.MultiDiGraph()
-        for n,d in self.graph.nodes_iter(data=True):
+        for n,d in self.graph.nodes(data=True):
             data = d.copy()
             if data['class'] != u'Port':
                 model = data.pop('class')
-                data['class'] = model.__name__.encode('utf-8')
-                for p in ('params', 'states'):
-                    r = self.modelDefaults[model][p].copy()
-                    r.update(data.pop(p))
-                    data.update(r)
-            graph.add_node(n, data)
-        for u,v,d in self.graph.edges_iter(data=True):
+                data['class'] = model.__name__
+                print(data['class'] )
+            graph.add_node(n, **data)
+        for u,v,d in self.graph.edges(data=True):
             data = d.copy()
             graph.add_edge(u, v, **data)
         nx.write_gexf(graph, filename)
@@ -326,14 +322,14 @@ class Graph(object):
     def read_gexf(self, filename):
         self.graph = nx.MultiDiGraph()
         graph = nx.read_gexf(filename)
-        for n,d in graph.nodes_iter(data=True):
+        for n,d in graph.nodes(data=True):
             if d['class'].encode('utf-8') == u'Port':
                 self.add_port(n, **d)
             else:
                 model = d.pop('class')
                 # neuron and synapse are ambigious at this point
                 self.add_neuron(n, model, **d)
-        for u,v,d in graph.edges_iter(data=True):
+        for u,v,d in graph.edges(data=True):
             self.graph.add_edge(u, v, **d)
 
     @property
@@ -368,7 +364,7 @@ class Graph(object):
         return issubclass(n['class'], BaseSynapsekModel.BaseSynapsekModel)
 
 if __name__ == "__main__":
-    from neurokernel.LPU.graph import Graph
+    from neurokernel.LPU.Graph import Graph
 
     a = Graph()
     a.add_neuron('1', 'LeakyIAF')
